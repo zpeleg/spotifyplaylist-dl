@@ -10,8 +10,6 @@ from googleapiclient.discovery import build
 
 with open("secrets.json") as secretsfile:
     SECRETS = json.load(secretsfile)
-    print(SECRETS)
-print(sys.stdout.encoding)
 
 DEVELOPER_KEY = SECRETS["youtube"]["developerKey"]
 YOUTUBE_API_SERVICE_NAME = "youtube"
@@ -44,7 +42,7 @@ def __youtube_search(query):
 CLIENT_ID = SECRETS["spotify"]["clientId"]
 CLIENT_SECRET = SECRETS["spotify"]["clientSecret"]
 
-def __get_access_token(client_id=CLIENT_ID, client_secret=CLIENT_SECRET):
+def __spotify_get_access_token(client_id=CLIENT_ID, client_secret=CLIENT_SECRET):
     concat = client_id+':'+client_secret
     authorization = base64.b64encode(concat.encode('ascii')).decode('ascii')
     data = {
@@ -72,7 +70,7 @@ def __uprint(*objects, sep=' ', end='\n', file=sys.stdout):
         f = lambda obj: str(obj).encode(enc, errors='backslashreplace').decode(enc)
         print(*map(f, objects), sep=sep, end=end, file=file)
 
-def __get_playlist_tracks(user, playlist, token):
+def __spotify_get_playlist_tracks(user, playlist, token):
     songs = []
     spotify_api_url = "https://api.spotify.com/v1/users/%s/playlists/%s/tracks" %(user, playlist)
     while spotify_api_url:
@@ -89,31 +87,36 @@ def __get_playlist_tracks(user, playlist, token):
         spotify_api_url = jsonout.get('next', '')
     return songs
 
-def __main():
-    access_token = __get_access_token()
-    print(' * Got access token')
-    songs = __get_playlist_tracks('oocdiddy', '2cjySDOU0ikjqjBa7JDgaV', access_token)
-    print(' * Got song list')
+def __get_youtubedl_command(artist, title, youtube_link):
+    return 'youtube-dl -o "c:\\tmp\\songs\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format best --audio-quality 0 -k --prefer-ffmpeg {{youtube_link}}' \
+            .replace('{{artist}}', artist)\
+            .replace('{{title}}', title)\
+            .replace('{{youtube_link}}', youtube_link)
 
+def __create_youtube_search_terms(songs):
     searchterms = []
     for song in songs:
+        # If there are multiple artists for a song, try with all of them
+        # This could download the same track multiple times, but they will overwrite themselves
         for artist_name in song['artists']:
             searchterms.append((song, '%s %s' % (song['title'], artist_name)))
-    index = 0
-    for item, term in searchterms:
-        __uprint(term)
+    return searchterms
+
+def __main():
+    spotify_access_token = __spotify_get_access_token()
+    print(' * Got access token')
+    songs = __spotify_get_playlist_tracks('oocdiddy', '2cjySDOU0ikjqjBa7JDgaV', spotify_access_token)
+    print(' * Got song list')
+
+    searchterms = __create_youtube_search_terms(songs)
+
+    for index, (song, term) in enumerate(searchterms):
         search_result = __youtube_search(term)
-        __uprint(' * %i/%i' % (index, len(searchterms)))
-        __uprint('\t  %s - %s' % (item['title'], str(item['artists'])))
-        __uprint('\t  downloading: %s' % (str(search_result[0])))
-        command = 'youtube-dl -o "c:\\tmp\\songs\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format best --audio-quality 0 -k --prefer-ffmpeg ' \
-            .replace('{{artist}}', item['artists'][0])\
-            .replace('{{title}}', item['title'])\
-            +search_result[0][1]
-        index += 1
+        __uprint(' * %i/%i %s - %s' % (index, len(searchterms), song['title'], str(song['artists'])))
+        __uprint('   downloading: %s' % (str(search_result[0])))
+        command = __get_youtubedl_command(song['artists'][0], song['title'], search_result[0][1])
         dl_process = subprocess.Popen(command)
         dl_process.communicate()
-        #uprint(command)
 
 if __name__ == '__main__':
     __main()
