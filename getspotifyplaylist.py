@@ -99,7 +99,7 @@ def __spotify_get_playlist_tracks(user, playlist, token):
     return songs
 
 def __get_youtubedl_command(artist, title, youtube_link,output_folder):
-    return 'youtube-dl -o "{{outputfolder}}\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format best --audio-quality 0 -k --prefer-ffmpeg {{youtube_link}}' \
+    return 'youtube-dl -o "{{outputfolder}}\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format mp3 --audio-quality 0 --prefer-ffmpeg {{youtube_link}}' \
             .replace('{{artist}}', artist)\
             .replace('{{title}}', title)\
             .replace('{{youtube_link}}', youtube_link)\
