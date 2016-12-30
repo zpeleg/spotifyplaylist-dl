@@ -2,10 +2,6 @@
 Downloads spotify playlists by searching for them on youtube.
 
 TODO:
-* Add argument parsing
-  [V] Parse Spotify Playlist URI
-  [V] Parse output folder, with sane default (./output/playlistname)
-    [ ] Read playlist name
 * Use youtube-dl as a function and not as a process
   * https://github.com/rg3/youtube-dl/blob/master/README.md#embedding-youtube-dl
 """
@@ -81,6 +77,13 @@ def __uprint(*objects, sep=' ', end='\n', file=sys.stdout):
         f = lambda obj: str(obj).encode(enc, errors='backslashreplace').decode(enc)
         print(*map(f, objects), sep=sep, end=end, file=file)
 
+def __spotify_get_playlist_name(user, playlist, token):
+    spotify_api_url = "https://api.spotify.com/v1/users/%s/playlists/%s" %(user, playlist)
+    resp = requests.get(
+        spotify_api_url,
+        headers={'Accept': 'application/json', 'Authorization': 'Bearer ' + token})
+    return resp.json()['name']
+
 def __spotify_get_playlist_tracks(user, playlist, token):
     songs = []
     spotify_api_url = "https://api.spotify.com/v1/users/%s/playlists/%s/tracks" %(user, playlist)
@@ -98,7 +101,7 @@ def __spotify_get_playlist_tracks(user, playlist, token):
         spotify_api_url = jsonout.get('next', '')
     return songs
 
-def __get_youtubedl_command(artist, title, youtube_link,output_folder):
+def __get_youtubedl_command(artist, title, youtube_link, output_folder):
     return 'youtube-dl -o "{{outputfolder}}\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format mp3 --audio-quality 0 --prefer-ffmpeg {{youtube_link}}' \
             .replace('{{artist}}', artist)\
             .replace('{{title}}', title)\
@@ -129,8 +132,10 @@ def __main(playlist, output_folder, simulate_mode):
 
     spotify_access_token = __spotify_get_access_token()
     print(' * Got access token')
+    playlist_name = __spotify_get_playlist_name(user_id, playlist_id, spotify_access_token)
+    print(' * Playlist name: "{}"'.format(playlist_name))
     songs = __spotify_get_playlist_tracks(user_id, playlist_id, spotify_access_token)
-    print(' * Got song list')
+    print(' * Got song list - {} songs'.format(len(songs)))
 
     searchterms = __create_youtube_search_terms(songs)
 
@@ -153,4 +158,5 @@ if __name__ == '__main__':
     print('Downloading playlist: {}\nSaving to {}'.format(args.playlist, os.path.abspath(args.out)))
     if args.simulate:
         print('XXX - running in simulate mode')
+    print('\n\n')
     __main(args.playlist, args.out, args.simulate)
