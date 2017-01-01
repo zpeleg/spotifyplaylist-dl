@@ -2,7 +2,7 @@
 Downloads spotify playlists by searching for them on youtube.
 
 TODO:
-[ ] Use youtube-dl as a function and not as a process
+[v] Use youtube-dl as a function and not as a process
   * https://github.com/rg3/youtube-dl/blob/master/README.md#embedding-youtube-dl
 [ ] Fix secrets to work better
 [ ] Split to spotify and youtube modules
@@ -10,7 +10,6 @@ TODO:
 
 import base64
 import json
-import subprocess
 import sys
 import argparse
 import os
@@ -18,6 +17,7 @@ import os
 import requests
 from googleapiclient.discovery import build
 import youtube_dl
+import progressbar
 
 with open("secrets.json") as secretsfile:
     SECRETS = json.load(secretsfile)
@@ -46,8 +46,6 @@ def __youtube_search(query):
         if search_result["id"]["kind"] == "youtube#video":
             videos.append((search_result["snippet"]["title"], search_result["id"]["videoId"]))
     return videos
-
-#youtube_search('gravity john mayer')
 
 
 CLIENT_ID = SECRETS["spotify"]["clientId"]
@@ -124,6 +122,13 @@ def __parse_playlist_uri(uri):
     return user_id, playlist_id
 
 def __youtube_download_audio(song, youtube_id, output_folder):
+    progress = progressbar.ProgressBar()
+    progress.start()
+    def progress_callback(data):
+        if data['status'] != "downloading" or 'downloaded_bytes' not in data or 'total_bytes' not in data:
+            return
+        progress.update(data['downloaded_bytes']/data['total_bytes']*100)
+        # print('total bytes: {}. downloaded: {}. result: {}'.format(data['total_bytes'],data['downloaded_bytes'],))
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -133,10 +138,12 @@ def __youtube_download_audio(song, youtube_id, output_folder):
         }],
         'outtmpl':'{}\\{} - {} (%(title)s).%(ext)s'.format(output_folder, ','.join(song['artists']), song['title']),
         'nooverwrites': True,
-        'quiet':True
+        'quiet': True,
+        'progress_hooks': [progress_callback]
     }
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([youtube_id])
+    progress.finish()
 
 def __main(playlist, output_folder, simulate_mode):
     user_id, playlist_id = __parse_playlist_uri(playlist)
@@ -152,6 +159,9 @@ def __main(playlist, output_folder, simulate_mode):
 
     for index, (song, term) in enumerate(searchterms):
         search_result = __youtube_search(term)
+        if not search_result:
+            __uprint('   XXX - could not find {}'.format(song['title']))
+            continue
         __uprint(' * %i/%i %s - %s' % (index, len(searchterms), song['title'], str(song['artists'])))
         __uprint('   downloading: %s' % (str(search_result[0])))
         if not simulate_mode:
@@ -167,5 +177,5 @@ if __name__ == '__main__':
     print('Downloading playlist: {}\nSaving to {}'.format(args.playlist, os.path.abspath(args.out)))
     if args.simulate:
         print('XXX - running in simulate mode')
-    print('\n\n')
+    print('\n')
     __main(args.playlist, args.out, args.simulate)
