@@ -2,8 +2,10 @@
 Downloads spotify playlists by searching for them on youtube.
 
 TODO:
-* Use youtube-dl as a function and not as a process
+[ ] Use youtube-dl as a function and not as a process
   * https://github.com/rg3/youtube-dl/blob/master/README.md#embedding-youtube-dl
+[ ] Fix secrets to work better
+[ ] Split to spotify and youtube modules
 """
 
 import base64
@@ -127,6 +129,11 @@ def __parse_playlist_uri(uri):
     playlist_id = playlistparts[4]
     return user_id, playlist_id
 
+def __youtube_download_audio(song, youtube_id, output_folder):
+    command = __get_youtubedl_command(song['artists'][0], song['title'], youtube_id, output_folder)
+    dl_process = subprocess.Popen(command)
+    dl_process.communicate()
+
 def __main(playlist, output_folder, simulate_mode):
     user_id, playlist_id = __parse_playlist_uri(playlist)
 
@@ -144,9 +151,7 @@ def __main(playlist, output_folder, simulate_mode):
         __uprint(' * %i/%i %s - %s' % (index, len(searchterms), song['title'], str(song['artists'])))
         __uprint('   downloading: %s' % (str(search_result[0])))
         if not simulate_mode:
-            command = __get_youtubedl_command(song['artists'][0], song['title'], search_result[0][1], output_folder)
-            dl_process = subprocess.Popen(command)
-            dl_process.communicate()
+            __youtube_download_audio(song, search_result[0][1], output_folder)
 
 if __name__ == '__main__':
     # pylint: disable=C0103
