@@ -17,6 +17,7 @@ import os
 
 import requests
 from googleapiclient.discovery import build
+import youtube_dl
 
 with open("secrets.json") as secretsfile:
     SECRETS = json.load(secretsfile)
@@ -103,13 +104,6 @@ def __spotify_get_playlist_tracks(user, playlist, token):
         spotify_api_url = jsonout.get('next', '')
     return songs
 
-def __get_youtubedl_command(artist, title, youtube_link, output_folder):
-    return 'youtube-dl -o "{{outputfolder}}\\{{artist}} - {{title}} (%(title)s).%(ext)s" -w -q -x --audio-format mp3 --audio-quality 0 --prefer-ffmpeg {{youtube_link}}' \
-            .replace('{{artist}}', artist)\
-            .replace('{{title}}', title)\
-            .replace('{{youtube_link}}', youtube_link)\
-            .replace('{{outputfolder}}', output_folder)
-
 def __create_youtube_search_terms(songs):
     searchterms = []
     for song in songs:
@@ -130,9 +124,19 @@ def __parse_playlist_uri(uri):
     return user_id, playlist_id
 
 def __youtube_download_audio(song, youtube_id, output_folder):
-    command = __get_youtubedl_command(song['artists'][0], song['title'], youtube_id, output_folder)
-    dl_process = subprocess.Popen(command)
-    dl_process.communicate()
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'outtmpl':'{}\\{} - {} (%(title)s).%(ext)s'.format(output_folder, ','.join(song['artists']), song['title']),
+        'nooverwrites': True,
+        'quiet':True
+    }
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([youtube_id])
 
 def __main(playlist, output_folder, simulate_mode):
     user_id, playlist_id = __parse_playlist_uri(playlist)
