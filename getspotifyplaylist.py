@@ -4,26 +4,27 @@ Downloads spotify playlists by searching for them on youtube.
 TODO:
 [v] Use youtube-dl as a function and not as a process
   * https://github.com/rg3/youtube-dl/blob/master/README.md#embedding-youtube-dl
-[ ] Fix secrets to work better
+[V] Fix secrets to work better
+    [V] Use this: https://github.com/theskumar/python-dotenv
 [ ] Split to spotify and youtube modules
 [ ] Add audio quality switch
 """
 
 import base64
-import json
 import sys
 import argparse
 import os
+from os.path import dirname, realpath, join
 
 import requests
 from googleapiclient.discovery import build
 import youtube_dl
 import progressbar
+from dotenv import load_dotenv
 
-with open('secrets.json') as secretsfile:
-    SECRETS = json.load(secretsfile)
+load_dotenv(join(dirname(realpath(__file__)), '.env'))
 
-DEVELOPER_KEY = SECRETS['youtube']['developerKey']
+DEVELOPER_KEY = os.environ.get('YOUTUBE_DEVELOPER_KEY')
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
@@ -49,8 +50,8 @@ def __youtube_search(query):
     return videos
 
 
-CLIENT_ID = SECRETS['spotify']['clientId']
-CLIENT_SECRET = SECRETS['spotify']['clientSecret']
+CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
+CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 
 def __spotify_get_access_token(client_id=CLIENT_ID, client_secret=CLIENT_SECRET):
     concat = client_id+':'+client_secret
@@ -140,7 +141,10 @@ def __youtube_download_audio(song, youtube_id, output_folder):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'outtmpl':'{}\\{} - {} (%(title)s).%(ext)s'.format(output_folder, __sanitize_file_name(','.join(song['artists'])), __sanitize_file_name(song['title'])),
+        'outtmpl':'{}\\{} - {} (%(title)s).%(ext)s'.format(
+            output_folder,
+            __sanitize_file_name(','.join(song['artists'])),
+            __sanitize_file_name(song['title'])),
         'nooverwrites': True,
         'quiet': True,
         'progress_hooks': [progress_callback]
