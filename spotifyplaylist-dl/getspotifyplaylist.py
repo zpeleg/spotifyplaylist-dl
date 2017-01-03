@@ -7,7 +7,7 @@ TODO:
 [V] Fix secrets to work better
     [V] Use this: https://github.com/theskumar/python-dotenv
 [ ] Split to spotify and youtube modules
-[ ] Add audio quality switch
+[V] Add audio quality switch
 """
 
 import base64
