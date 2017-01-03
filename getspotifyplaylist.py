@@ -126,7 +126,7 @@ def __parse_playlist_uri(uri):
 def __sanitize_file_name(name):
     return name.replace('/', '_').replace('\\', '_')
 
-def __youtube_download_audio(song, youtube_id, output_folder):
+def __youtube_download_audio(song, youtube_id, output_folder, audio_qaulity):
     progress = progressbar.ProgressBar()
     progress.start()
     def progress_callback(data):
@@ -139,7 +139,7 @@ def __youtube_download_audio(song, youtube_id, output_folder):
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192',
+            'preferredquality': str(audio_qaulity),
         }],
         'outtmpl':'{}\\{} - {} (%(title)s).%(ext)s'.format(
             output_folder,
@@ -153,7 +153,7 @@ def __youtube_download_audio(song, youtube_id, output_folder):
         ydl.download([youtube_id])
     progress.finish()
 
-def __main(playlist, output_folder, simulate_mode):
+def __main(playlist, output_folder, simulate_mode, audio_quality):
     user_id, playlist_id = __parse_playlist_uri(playlist)
 
     spotify_access_token = __spotify_get_access_token()
@@ -173,7 +173,7 @@ def __main(playlist, output_folder, simulate_mode):
         __uprint(' * {}/{} {} - {}'.format(index, len(searchterms), ', '.join(song['artists']), song['title']))
         __uprint('   downloading: {}'.format(search_result[0]))
         if not simulate_mode:
-            __youtube_download_audio(song, search_result[0][1], output_folder)
+            __youtube_download_audio(song, search_result[0][1], output_folder, audio_quality)
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -181,9 +181,10 @@ if __name__ == '__main__':
     parser.add_argument('playlist', help='Spotify uri of the playlist')
     parser.add_argument('-o', '--out', help='output folder', default='.\\output')
     parser.add_argument('-s', '--simulate', help='Do not download files, simulate process', action='store_true')
+    parser.add_argument('-q', '--quality', help='Encoding quality of mp3. Can be a bitrate or 0-9 for vbr', default=192)
     args = parser.parse_args()
-    print('Downloading playlist: {}\nSaving to {}'.format(args.playlist, os.path.abspath(args.out)))
+    print('Downloading playlist: {}\nSaving to {}\nUsing quality {}'.format(args.playlist, os.path.abspath(args.out), args.quality))
     if args.simulate:
         print('XXX - running in simulate mode')
     print('\n')
-    __main(args.playlist, args.out, args.simulate)
+    __main(args.playlist, args.out, args.simulate, args.quality)
