@@ -14,7 +14,7 @@ pydocstyle==1.1.1
 pylint==1.6.4
 python-dotenv==0.6.1
 requests==2.12.4
-rsa==3.4.2
+rsa==4.7
 six==1.10.0
 uritemplate==3.0.0
 urllib3==1.19.1
